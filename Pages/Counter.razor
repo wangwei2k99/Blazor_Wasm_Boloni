@@ -1,47 +1,134 @@
 ﻿@page "/counter"
 
-<h1>Multiple files</h1>
-
-<p>A multi-file picker that displays information about selection and shows progress as each one is loaded.</p>
-
-<label for="uploadFiles">Select File(s)</label>
+<h1>手工拆图转MES工具</h1>
+<p>请单击“选择文件”按钮选择一个或多个Excel文件..</p>
 <InputFile id="uploadFiles" multiple OnChange="HandleSelection" />
 
-<label for="uploadFolder">Select Folder</label>
-<InputFile id="uploadFolder" multiple webkitdirectory OnChange="HandleSelection" />
-
-@if (selectedFiles != null)
+@*<label for="uploadFolder">Select Folder</label>
+    <InputFile id="uploadFolder" multiple webkitdirectory OnChange="HandleSelection" />*@
+@switch (state)
 {
-    foreach (var file in selectedFiles)
-    {
-        var isLoading = file.Data.Position > 0;
-
-        <div class="file-row">
-            <!-- File info -->
-            <div>
-                <h2>@file.Name</h2>
+    case 1:
+        @if (selectedFiles != null)
+        {
+            <button @onclick="@Conver" disabled=@isload1>
+                @if (!isload1)
+                {
+                    <span>点击此处开始转换</span> }
+                else
+                {
+                    <span>转换中...</span>}
+            </button>
+        }
+        foreach (var file in selectedFiles)
+        {
+            <div class="file-row">
+                <!-- File info -->
+                <h6>
+                    <strong>
+                        @file.Name
+                    </strong>
+                </h6>
                 Size: <strong>@file.Size bytes</strong>;
                 Last modified: <strong>@file.LastModified.ToShortDateString()</strong>;
                 Type: <strong>@file.Type</strong>
                 Relative Path: <strong>@file.RelativePath</strong>
+                <!-- Upload button -->
             </div>
-
-            <!-- Upload button -->
-            <button @onclick="() => LoadFile(file)" disabled="@isLoading">
-                @if (!isLoading)
+            <hr />
+        }
+        break;
+    case 2:
+        @if (selectedFiles != null)
+        {
+            <button @onclick="@Conver" disabled=@isload1>
+                @if (!isload1)
                 {
-                    <span>Load</span> }
+                    <span>点击此处开始转换</span> }
                 else
                 {
-                    <span>Loaded @((100.0 * file.Data.Position / file.Size).ToString("0"))%</span>}
+                    <span>转换中...</span>}
             </button>
-        </div>}
+        }
+        break;
+    case 3:
+        <button @onclick="@Out">
+            <span>输出...</span>
+        </button>
+
+        <style>
+            .excel {
+                border: 1px solid black;
+            }
+
+                .excel td {
+                    border: 1px solid black;
+                    padding: 5px;
+                }
+
+                .excel th {
+                    border: 2px solid black;
+                    padding: 5px;
+                    text-align: center;
+                }
+
+                .excel caption {
+                    text-align: center;
+                }
+        </style>
+
+        <table class="excel">
+            <caption>@dts.TableName</caption>
+            @if (dts != null)
+            {
+                <thead>
+                    <tr>
+                        @for (int i = 0; i < dts.Columns.Count; i++)
+                        {
+                            <th>@dts.Columns[i].ColumnName</th>
+                        }
+                    </tr>
+                </thead>
+            }
+            <tbody>
+                @foreach (DataRow row in dts.Rows)
+                {
+                    <tr>
+                        @for (int cell = 0; cell < dts.Columns.Count; cell++)
+                        {
+                            <td>@row[cell]</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        break;
+    default:
+        break;
 }
 
-@code { IFileListEntry[] selectedFiles;
+@code {
+    IFileListEntry[] selectedFiles;
+    bool isload1;
+    int state;
+    Dictionary<int, string> status = new Dictionary<int, string>() {
+        {0,"选择文件" },{1,"选择完成" },{2,"处理中" },{3,"处理完成" }
+    };
+
+    public string[] 柜体 = new string[] { "OrderNo", "OrderName", "CRMOrderNo", "总套数", "Category", "Unit", "CabinetCode", "ProcessinginfoSummary", "CabinetClass", "ThingName", "Length", "Width", "Thickness", "数量", "Count", "BaseMaterial", "Edge", "Remark", "包装箱号" };
+    public string[] 铝材 = new string[] { "CabinetCode", "ProductLength", "ProductWidth", "Category", "预留1", "BaseMaterialCode", "ThingName", "Spec", "Length", "Width", "数量", "Count", "Unit", "Remark" };
+    public string[] 五金 = new string[] { "Category", "BaseMaterialCode", "ThingName", "Spec", "数量", "Count", "Unit", "Remark" };
+    public string[] 吸塑门板 = new string[] { "CabinetCode", "ProcessinginfoSummary", "DoorCode", "ThingName", "Length", "Width", "ProductLength", "ProductWidth", "Thickness", "数量", "Count", "BaseMaterial", "膜皮型号", "DoorDirection", "Remark" };
+    public string[] 耐磨板门板 = new string[] { "CabinetCode", "ProcessinginfoSummary", "DoorCode", "ThingName", "Length", "Width", "ProductLength", "ProductWidth", "Thickness", "数量", "Count", "BaseMaterial", "Edge", "DoorDirection", "Remark" };
+    public string[] 工作表 = { "柜体", "铝材", "五金", "耐磨板门板", "单面吸塑门板", "双面吸塑门板" };
+
+    DataTable dts = new DataTable();
 
     void HandleSelection(IFileListEntry[] files)
     {
+        state = 1;
+        isload1 = false;
         selectedFiles = files;
     }
 
@@ -56,11 +143,285 @@
         file.Data.CopyToAsync(ms);
         return ms;
     }
+    protected void Conver()
+    {
+        isload1 = true;
+        state = 2;
+        foreach (var file in selectedFiles)
+        {
+            var fileInRam = LoadFile(file);
+            string 项目编码;
+            string 项目名称;
+            string 订单编号;
+            string 总套数;
+            DataSet dsp = NPOI.MemstreamToDataSet(fileInRam);
+            for (int Sht = 0; Sht < 工作表.Length; Sht++)
+            {
+                foreach (DataTable dt_temp in dsp.Tables)
+                {
+                    switch (Sht)
+                    {
+                        case 0:
+                            {
+                                if (dt_temp.TableName.Trim() != 工作表[Sht]) break;
+                                DataTable dt = NPOI.DtempToDt(dt_temp, 1, 19);
+                                int Index = 0;
+                                for (int i = 0; i < dt.Columns.Count; i++)
+                                {
+                                    dt.Columns[i].ColumnName = 柜体[Index];
+                                    Index += 1;
+                                }
+                                项目编码 = dt.Rows[4][9].ToString();
+                                项目名称 = dt.Rows[4][12].ToString();
+                                订单编号 = dt.Rows[3][12].ToString();
+                                总套数 = dt.Rows[5][9].ToString();
+                                NPOI.SetColValue(ref dt, 项目编码, "OrderNo");
+                                NPOI.SetColValue(ref dt, 项目名称, "OrderName");
+                                NPOI.SetColValue(ref dt, 订单编号, "CRMOrderNo");
+                                NPOI.SetColValue(ref dt, 总套数, "总套数");
+                                NPOI.SetColValue(ref dt, "柜体", "Category");
+                                NPOI.SetColValue(ref dt, "块", "Unit");
+                                for (int i = dt.Rows.Count - 1; i >= 0; i--)
+                                {
+                                    if (dt.Rows[i]["ThingName"] == System.DBNull.Value
+                                        || dt.Rows[i]["Length"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"].ToString() == "总数")
+                                        dt.Rows[i].Delete();
+                                }
+                                dt.AcceptChanges();
+                                dts.Merge(dt);
+                                break;
+                            }
+                        case 1:
+                            {
+                                if (dt_temp.TableName.Trim() != 工作表[Sht]) break;
+                                DataTable dt = NPOI.DtempToDt(dt_temp, 1, 14);
+                                int Index = 0;
+                                for (int i = 0; i < dt.Columns.Count; i++)
+                                {
+                                    dt.Columns[i].ColumnName = 铝材[Index];
+                                    Index += 1;
+                                }
+                                项目编码 = dt.Rows[3][6].ToString();
+                                项目名称 = dt.Rows[3][8].ToString();
+                                订单编号 = dt.Rows[2][8].ToString();
+                                总套数 = dt.Rows[4][6].ToString();
+                                dt.Columns.Add("OrderNo", typeof(string));
+                                dt.Columns.Add("OrderName", typeof(string));
+                                dt.Columns.Add("CRMOrderNo", typeof(string));
+                                dt.Columns.Add("总套数", typeof(string));
+                                NPOI.SetColValue(ref dt, 项目编码, "OrderNo");
+                                NPOI.SetColValue(ref dt, 项目名称, "OrderName");
+                                NPOI.SetColValue(ref dt, 订单编号, "CRMOrderNo");
+                                NPOI.SetColValue(ref dt, 总套数, "总套数");
+                                NPOI.SetColValue(ref dt, "铝材", "Category");
+                                for (int i = dt.Rows.Count - 1; i >= 0; i--)
+                                {
+                                    if (dt.Rows[i]["BaseMaterialCode"] == System.DBNull.Value
+                                        || dt.Rows[i]["Length"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"].ToString() == "总数")
+                                        dt.Rows[i].Delete();
+                                }
+                                dt.AcceptChanges();
+                                dts.Merge(dt);
+                                break;
+                            }
+                        case 2:
+                            {
+                                if (dt_temp.TableName.Trim() != 工作表[Sht]) break;
+                                DataTable dt = NPOI.DtempToDt(dt_temp, 1, 8);
+                                int Index = 0;
+                                for (int i = 0; i < dt.Columns.Count; i++)
+                                {
+                                    dt.Columns[i].ColumnName = 五金[Index];
+                                    Index += 1;
+                                }
+                                项目编码 = dt.Rows[2][4].ToString();
+                                项目名称 = dt.Rows[2][2].ToString();
+                                订单编号 = dt.Rows[1][2].ToString();
+                                总套数 = dt.Rows[3][4].ToString();
+                                dt.Columns.Add("OrderNo", typeof(string));
+                                dt.Columns.Add("OrderName", typeof(string));
+                                dt.Columns.Add("CRMOrderNo", typeof(string));
+                                dt.Columns.Add("总套数", typeof(string));
+                                NPOI.SetColValue(ref dt, 项目编码, "OrderNo");
+                                NPOI.SetColValue(ref dt, 项目名称, "OrderName");
+                                NPOI.SetColValue(ref dt, 订单编号, "CRMOrderNo");
+                                NPOI.SetColValue(ref dt, 总套数, "总套数");
+                                NPOI.SetColValue(ref dt, "五金", "Category");
+                                for (int i = dt.Rows.Count - 1; i >= 0; i--)
+                                {
+                                    if (dt.Rows[i]["BaseMaterialCode"] == System.DBNull.Value
+                                        || dt.Rows[i]["ThingName"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"].ToString() == "总数量")
+                                        dt.Rows[i].Delete();
+                                }
+                                dt.AcceptChanges();
+                                dts.Merge(dt);
+                                break;
+                            }
+                        case 3:
+                            {
+                                if (dt_temp.TableName.Trim() != 工作表[Sht]) break;
+                                DataTable dt = NPOI.DtempToDt(dt_temp, 1, 15);
+                                int Index = 0;
+                                for (int i = 0; i < dt.Columns.Count; i++)
+                                {
+                                    dt.Columns[i].ColumnName = 耐磨板门板[Index];
+                                    Index += 1;
+                                }
+                                项目编码 = dt.Rows[3][3].ToString();
+                                项目名称 = dt.Rows[3][6].ToString();
+                                订单编号 = dt.Rows[2][6].ToString();
+                                总套数 = dt.Rows[4][3].ToString();
+                                dt.Columns.Add("OrderNo", typeof(string));
+                                dt.Columns.Add("OrderName", typeof(string));
+                                dt.Columns.Add("CRMOrderNo", typeof(string));
+                                dt.Columns.Add("总套数", typeof(string));
+                                dt.Columns.Add("Category", typeof(string));
+                                NPOI.SetColValue(ref dt, 项目编码, "OrderNo");
+                                NPOI.SetColValue(ref dt, 项目名称, "OrderName");
+                                NPOI.SetColValue(ref dt, 订单编号, "CRMOrderNo");
+                                NPOI.SetColValue(ref dt, 总套数, "总套数");
+                                NPOI.SetColValue(ref dt, "耐磨板门板", "Category");
+                                dt.Columns.Add("Unit", typeof(string));
+                                NPOI.SetColValue(ref dt, "块", "Unit");
+                                for (int i = dt.Rows.Count - 1; i >= 0; i--)
+                                {
+                                    if (dt.Rows[i]["ThingName"] == System.DBNull.Value
+                                        || dt.Rows[i]["Length"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"].ToString() == "总数")
+                                        dt.Rows[i].Delete();
+                                }
+                                dt.AcceptChanges();
+                                dts.Merge(dt);
+                                break;
+                            }
+                        case 4:
+                            {
+                                if (dt_temp.TableName.Trim() != 工作表[Sht]) break;
+                                DataTable dt = NPOI.DtempToDt(dt_temp, 1, 15);
+                                int Index = 0;
+                                for (int i = 0; i < dt.Columns.Count; i++)
+                                {
+                                    dt.Columns[i].ColumnName = 吸塑门板[Index];
+                                    Index += 1;
+                                }
+                                项目编码 = dt.Rows[3][3].ToString();
+                                项目名称 = dt.Rows[3][6].ToString();
+                                订单编号 = dt.Rows[2][6].ToString();
+                                总套数 = dt.Rows[4][3].ToString();
+                                dt.Columns.Add("OrderNo", typeof(string));
+                                dt.Columns.Add("OrderName", typeof(string));
+                                dt.Columns.Add("CRMOrderNo", typeof(string));
+                                dt.Columns.Add("总套数", typeof(string));
+                                dt.Columns.Add("Category", typeof(string));
+                                NPOI.SetColValue(ref dt, 项目编码, "OrderNo");
+                                NPOI.SetColValue(ref dt, 项目名称, "OrderName");
+                                NPOI.SetColValue(ref dt, 订单编号, "CRMOrderNo");
+                                NPOI.SetColValue(ref dt, 总套数, "总套数");
+                                NPOI.SetColValue(ref dt, "单面吸塑门板", "Category");
+                                dt.Columns.Add("Unit", typeof(string));
+                                NPOI.SetColValue(ref dt, "块", "Unit");
+                                for (int i = dt.Rows.Count - 1; i >= 0; i--)
+                                {
+                                    if (dt.Rows[i]["ThingName"] == System.DBNull.Value
+                                        || dt.Rows[i]["Length"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"].ToString() == "总数")
+                                        dt.Rows[i].Delete();
+                                }
+                                dt.AcceptChanges();
+                                dts.Merge(dt);
+                                break;
+                            }
+                        case 5:
+                            {
+                                if (dt_temp.TableName.Trim() != 工作表[Sht]) break;
+                                DataTable dt = NPOI.DtempToDt(dt_temp, 1, 15);
+                                int Index = 0;
+                                for (int i = 0; i < dt.Columns.Count; i++)
+                                {
+                                    dt.Columns[i].ColumnName = 吸塑门板[Index];
+                                    Index += 1;
+                                }
+                                项目编码 = dt.Rows[3][3].ToString();
+                                项目名称 = dt.Rows[3][6].ToString();
+                                订单编号 = dt.Rows[2][6].ToString();
+                                总套数 = dt.Rows[4][3].ToString();
+                                dt.Columns.Add("OrderNo", typeof(string));
+                                dt.Columns.Add("OrderName", typeof(string));
+                                dt.Columns.Add("CRMOrderNo", typeof(string));
+                                dt.Columns.Add("总套数", typeof(string));
+                                dt.Columns.Add("Category", typeof(string));
+                                NPOI.SetColValue(ref dt, 项目编码, "OrderNo");
+                                NPOI.SetColValue(ref dt, 项目名称, "OrderName");
+                                NPOI.SetColValue(ref dt, 订单编号, "CRMOrderNo");
+                                NPOI.SetColValue(ref dt, 总套数, "总套数");
+                                NPOI.SetColValue(ref dt, "双面吸塑门板", "Category");
+                                dt.Columns.Add("Unit", typeof(string));
+                                NPOI.SetColValue(ref dt, "块", "Unit");
+                                for (int i = dt.Rows.Count - 1; i >= 0; i--)
+                                {
+                                    if (dt.Rows[i]["ThingName"] == System.DBNull.Value
+                                        || dt.Rows[i]["Length"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"] == System.DBNull.Value
+                                        || dt.Rows[i]["Count"].ToString() == "总数")
+                                        dt.Rows[i].Delete();
+                                }
+                                dt.AcceptChanges();
+                                dts.Merge(dt);
+                                break;
+                            }
+                        default:
+                            break;
+                    }
+                }
+            }
+
+
+
+        }
+        dts.Columns.Add("EdgeF", typeof(string));
+        dts.Columns.Add("EdgeB", typeof(string));
+        dts.Columns.Add("EdgeL", typeof(string));
+        dts.Columns.Add("EdgeR", typeof(string));
+        foreach (DataRow row in dts.Rows)
+        {
+            string str = row["Edge"].ToString().Trim();
+            if (Regex.IsMatch(str, @"^四.*[0-9.]+$"))
+            {
+                string ef = Regex.Match(str, @"[$0-9.]+").Groups[0].ToString();
+                row["Edge"] = string.Format("{0},{1},{2},{3}", ef, ef, ef, ef);
+                row["EdgeF"] = ef;
+                row["EdgeB"] = ef;
+                row["EdgeL"] = ef;
+                row["EdgeR"] = ef;
+            }
+            else if (Regex.Matches(str, @"[0-9.]+").Count == 2)
+            {
+                MatchCollection ef = Regex.Matches(str, "(?<=[^0-9])[0-9.]+");
+                row["Edge"] = string.Format("{0},{1},{2},{3}", ef[0], ef[1], ef[1], ef[1]);
+                row["EdgeF"] = ef[0];
+                row["EdgeB"] = ef[1];
+                row["EdgeL"] = ef[1];
+                row["EdgeR"] = ef[1];
+            }
+        }
+        state = 3;
+    }
+    protected void Out()
+    {
+
+    }
     //async Task LoadFile(IFileListEntry file)
     //{
     //    // So the UI updates to show progress
     //    file.OnDataRead += (sender, eventArgs) => InvokeAsync(StateHasChanged);
-
     //    // Just load into .NET memory to show it can be done
     //    // Alternatively it could be saved to disk, or parsed in memory, or similar
     //    var ms = new MemoryStream();
