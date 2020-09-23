@@ -4,8 +4,6 @@
 <p>请单击“选择文件”按钮选择一个或多个Excel文件..</p>
 <InputFile id="uploadFiles" multiple OnChange="HandleSelection" />
 <p>@Message</p>
-@*<label for="uploadFolder">Select Folder</label>
-    <InputFile id="uploadFolder" multiple webkitdirectory OnChange="HandleSelection" />*@
 @switch (state)
 {
     case 1:
@@ -51,7 +49,6 @@
         <button @onclick="@Out">
             <span>输出...</span>
         </button>
-
         <style>
             .excel {
                 border: 1px solid black;
@@ -72,7 +69,6 @@
                     text-align: center;
                 }
         </style>
-
         @if (dts != null)
         {
             <table class="excel">
@@ -98,8 +94,6 @@
                 </tbody>
             </table>
         }
-
-
         break;
     default:
         break;
@@ -130,35 +124,35 @@
         selectedFiles = files;
     }
 
-    protected MemoryStream LoadFile(IFileListEntry file)
+    async Task<MemoryStream> LoadFile(IFileListEntry file)
     {
         // So the UI updates to show progress
-        file.OnDataRead += (sender, eventArgs) => InvokeAsync(StateHasChanged);
 
         // Just load into .NET memory to show it can be done
         // Alternatively it could be saved to disk, or parsed in memory, or similar
         var ms = new MemoryStream();
-        file.Data.CopyToAsync(ms);
+        await file.Data.CopyToAsync(ms);
+        ms.Seek(0, SeekOrigin.Begin);
         return ms;
     }
-    protected void Conver()
+    void Conver()
     {
 
-        foreach (var file in selectedFiles)
+        foreach (var Ifile in selectedFiles)
         {
-            if (file != null)
+            if (Ifile != null)
             {
                 try
                 {
                     Message = string.Empty;
                     isload1 = true;
                     state = 2;
-                    var fileInRam = LoadFile(file);
                     string 项目编码;
                     string 项目名称;
                     string 订单编号;
                     string 总套数;
-                    DataSet dsp = NPOI.MemstreamToDataSet(fileInRam);
+                    var ms = Task.Run(async () =>await LoadFile(Ifile)).Result;
+                    DataSet dsp = NPOI.MemstreamToDataSet(ms);
                     for (int Sht = 0; Sht < 工作表.Length; Sht++)
                     {
                         foreach (DataTable dt_temp in dsp.Tables)
@@ -426,13 +420,4 @@
     {
 
     }
-    //async Task LoadFile(IFileListEntry file)
-    //{
-    //    // So the UI updates to show progress
-    //    file.OnDataRead += (sender, eventArgs) => InvokeAsync(StateHasChanged);
-    //    // Just load into .NET memory to show it can be done
-    //    // Alternatively it could be saved to disk, or parsed in memory, or similar
-    //    var ms = new MemoryStream();
-    //    await file.Data.CopyToAsync(ms);
-    //}
 }
