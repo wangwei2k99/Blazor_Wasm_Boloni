@@ -132,10 +132,9 @@
         // Alternatively it could be saved to disk, or parsed in memory, or similar
         var ms = new MemoryStream();
         await file.Data.CopyToAsync(ms);
-        ms.Seek(0, SeekOrigin.Begin);
         return ms;
     }
-    void Conver()
+    async void Conver()
     {
 
         foreach (var Ifile in selectedFiles)
@@ -151,8 +150,11 @@
                     string 项目名称;
                     string 订单编号;
                     string 总套数;
-                    var ms = Task.Run(async () =>await LoadFile(Ifile)).Result;
+                    var ms = await LoadFile(Ifile);
+                    ms.Seek(0, SeekOrigin.Begin);
+                    //var ms = Task.Run(async () =>await LoadFile(Ifile)).Result;
                     DataSet dsp = NPOI.MemstreamToDataSet(ms);
+                    ms.Close();
                     for (int Sht = 0; Sht < 工作表.Length; Sht++)
                     {
                         foreach (DataTable dt_temp in dsp.Tables)
