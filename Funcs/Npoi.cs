@@ -10,7 +10,7 @@ namespace AppCfg.Npoi
 {
     public static class NPOI
     {
-        public static DataTable DtempToDt(DataTable Dt_Temp, int StartCol, int EndCol)
+        public static DataTable DtempToDt(DataTable Dt_Temp, int StartCol, int EndCol)//StartCol,EndCol从1开始
         {
             for (int i = Dt_Temp.Columns.Count-1; i >=0; i--)
             {
@@ -21,7 +21,7 @@ namespace AppCfg.Npoi
             }
             return Dt_Temp;
         }
-        public static DataSet MemstreamToDataSet(MemoryStream ms)//StartCol,EndCol从1开始
+        public static DataSet MemstreamToDataSet(MemoryStream ms)
         {
             DataSet ds = new DataSet();
             IWorkbook workbook;
