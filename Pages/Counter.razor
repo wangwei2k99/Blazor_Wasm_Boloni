@@ -1,5 +1,4 @@
 ﻿@page "/counter"
-
 <h1>手工拆图转MES工具</h1>
 <p>请单击“选择文件”按钮选择一个或多个Excel文件..</p>
 <InputFile id="uploadFiles" multiple OnChange="HandleSelection" />
@@ -53,26 +52,23 @@
             .excel {
                 border: 1px solid black;
             }
-
                 .excel td {
                     border: 1px solid black;
                     padding: 5px;
                 }
-
                 .excel th {
                     border: 2px solid black;
                     padding: 5px;
                     text-align: center;
                 }
-
                 .excel caption {
                     text-align: center;
                 }
         </style>
-        @if (dts != null)
-        {
-            <table class="excel">
-                <caption>@dts.TableName</caption>
+        <table class="excel">
+            <caption>@dts.TableName</caption>
+            @if (dts != null)
+            {
                 <thead>
                     <tr>
                         @for (int i = 0; i < dts.Columns.Count; i++)
@@ -81,24 +77,23 @@
                         }
                     </tr>
                 </thead>
-                <tbody>
-                    @foreach (DataRow row in dts.Rows)
-                    {
-                        <tr>
-                            @for (int cell = 0; cell < dts.Columns.Count; cell++)
-                            {
-                                <td>@row[cell]</td>
-                            }
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
+            }
+            <tbody>
+                @foreach (DataRow row in dts.Rows)
+                {
+                    <tr>
+                        @for (int cell = 0; cell < dts.Columns.Count; cell++)
+                        {
+                            <td>@row[cell]</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
         break;
     default:
         break;
 }
-
 @code {
     IFileListEntry[] selectedFiles;
     bool isload1;
@@ -107,27 +102,23 @@
     Dictionary<int, string> status = new Dictionary<int, string>() {
         {0,"选择文件" },{1,"选择完成" },{2,"处理中" },{3,"处理完成" }
     };
-
     public string[] 柜体 = new string[] { "OrderNo", "OrderName", "CRMOrderNo", "总套数", "Category", "Unit", "CabinetCode", "ProcessinginfoSummary", "CabinetClass", "ThingName", "Length", "Width", "Thickness", "数量", "Count", "BaseMaterial", "Edge", "Remark", "包装箱号" };
     public string[] 铝材 = new string[] { "CabinetCode", "ProductLength", "ProductWidth", "Category", "预留1", "BaseMaterialCode", "ThingName", "Spec", "Length", "Width", "数量", "Count", "Unit", "Remark" };
     public string[] 五金 = new string[] { "Category", "BaseMaterialCode", "ThingName", "Spec", "数量", "Count", "Unit", "Remark" };
     public string[] 吸塑门板 = new string[] { "CabinetCode", "ProcessinginfoSummary", "DoorCode", "ThingName", "Length", "Width", "ProductLength", "ProductWidth", "Thickness", "数量", "Count", "BaseMaterial", "膜皮型号", "DoorDirection", "Remark" };
     public string[] 耐磨板门板 = new string[] { "CabinetCode", "ProcessinginfoSummary", "DoorCode", "ThingName", "Length", "Width", "ProductLength", "ProductWidth", "Thickness", "数量", "Count", "BaseMaterial", "Edge", "DoorDirection", "Remark" };
     public string[] 工作表 = { "柜体", "铝材", "五金", "耐磨板门板", "单面吸塑门板", "双面吸塑门板" };
-
     DataTable dts = new DataTable();
-
     void HandleSelection(IFileListEntry[] files)
     {
         state = 1;
         isload1 = false;
         selectedFiles = files;
     }
-
     async Task<MemoryStream> LoadFile(IFileListEntry file)
     {
         // So the UI updates to show progress
-
+        file.OnDataRead += (sender, eventArgs) => InvokeAsync(StateHasChanged);
         // Just load into .NET memory to show it can be done
         // Alternatively it could be saved to disk, or parsed in memory, or similar
         var ms = new MemoryStream();
@@ -136,12 +127,11 @@
     }
     async void Conver()
     {
-
-        foreach (var Ifile in selectedFiles)
+        try
         {
-            if (Ifile != null)
+            foreach (var Ifile in selectedFiles)
             {
-                try
+                if (Ifile != null)
                 {
                     Message = string.Empty;
                     isload1 = true;
@@ -382,13 +372,12 @@
                             }
                         }
                     }
-
-                }
-                catch (Exception e)
-                {
-                    Message = e.ToString();
                 }
             }
+        }
+        catch (Exception e)
+        {
+            Message = e.ToString();
         }
         dts.Columns.Add("EdgeF", typeof(string));
         dts.Columns.Add("EdgeB", typeof(string));
@@ -417,9 +406,10 @@
             }
         }
         state = 3;
+        this.StateHasChanged();
+        Message = "Done.";
     }
     protected void Out()
     {
-
     }
 }
