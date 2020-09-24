@@ -121,11 +121,11 @@
         file.OnDataRead += (sender, eventArgs) => InvokeAsync(StateHasChanged);
         // Just load into .NET memory to show it can be done
         // Alternatively it could be saved to disk, or parsed in memory, or similar
-        var ms = new MemoryStream();
+        var ms = new MemoryStream(8192);
         await file.Data.CopyToAsync(ms);
         return ms;
     }
-    async void Conver()
+    async Task Conver()
     {
         try
         {
@@ -140,9 +140,9 @@
                     string 项目名称;
                     string 订单编号;
                     string 总套数;
-                    var ms = await LoadFile(Ifile);
+                    var ms = new MemoryStream(8192);
+                    await Ifile.Data.CopyToAsync(ms);
                     ms.Seek(0, SeekOrigin.Begin);
-                    //var ms = Task.Run(async () =>await LoadFile(Ifile)).Result;
                     DataSet dsp = NPOI.MemstreamToDataSet(ms);
                     ms.Close();
                     for (int Sht = 0; Sht < 工作表.Length; Sht++)
